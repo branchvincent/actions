@@ -1,0 +1,70 @@
+name: Bump version
+description: Bump version
+inputs:
+  token:
+    description: GitHub token
+    required: true
+  version-file:
+    description: Version file
+    required: true
+  version-path:
+    description: Version path
+    required: true
+  docker:
+    description: Build and push image
+    required: false
+    default: "false"
+  docker-username:
+    description: Docker username
+    required: false
+  docker-password:
+    description: Docker password
+    required: false
+  docker-registry:
+    description: Docker registery
+    required: false
+  docker-repository:
+    description: Docker repository
+    required: false
+outputs:
+  version:
+    description: "New version"
+    value: ${{ steps.version.outputs.tag }}
+  tag:
+    description: "New tag, v{version}"
+    value: ${{ steps.version.outputs.tag }}
+runs:
+  using: "composite"
+  steps:
+    - uses: TriPSs/conventional-changelog-action@v3
+      id: version
+      with:
+        github-token: ${{ inputs.token }}
+        git-user-name: "GitHub Actions"
+        git-user-email: "action@github.com"
+        version-file: ${{ inputs.version-file }}
+        version-path: ${{ inputs.version-path }}
+        preset: conventionalcommits
+        output-file: false
+        skip-on-empty: false
+    - name: Set new commit hash
+      run: echo "::set-env name=SHA::$(git rev-parse HEAD)"
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v1
+      if: ${{ inputs.docker && steps.version.outputs.skipped == 'false'}}
+      with:
+        username: ${{ inputs.docker-username }}
+        password: ${{ inputs.docker-password }}
+        registry: ${{ inputs.docker-registry }}
+        repository: ${{ inputs.docker-repository }}
+        tags: ${{ steps.version.outputs.tag }},latest
+    - name: Create release
+      uses: actions/create-release@v1
+      if: ${{ steps.version.outputs.skipped == 'false' }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: ${{ steps.version.outputs.tag }}
+        body: ${{ steps.version.outputs.clean_changelog }}
+        commitish: ${{ env.SHA }}
