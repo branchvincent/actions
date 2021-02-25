@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# Restore an existing RDS database (target) from a snapshot (source).
+# This is a bit of a hack since RDS does not directly allow restoring
+# an existing database. So it does the following:
+#
+# (1) Get the target db's settings
+# (2) Delete the target db
+# (3) Restore a new target db from the source's latest snapshot
+#
+# Note, to see all available RDS instances:
+#
+# $ aws rds describe-db-instances --query='DBInstances[].DBInstanceIdentifier'
+
+set -euo pipefail
+
+RDS_INSTANCE_SOURCE=${1?Source Required}
+RDS_INSTANCE_TARGET=${2?Target Required}
+
+export AWS_PAGER="" # disable output pagination
+
+# Perserve any settings that won't/shouldn't be inherited from the snapshot
+get_db_settings() {
+    aws rds describe-db-instances \
+        --db-instance-identifier "$RDS_INSTANCE_TARGET" \
+        --query 'DBInstances[0].{
+            AutoMinorVersionUpgrade: AutoMinorVersionUpgrade
+            AvailabilityZone: AvailabilityZone
+            CopyTagsToSnapshot: CopyTagsToSnapshot
+            DBInstanceClass: DBInstanceClass
+            DBParameterGroupName: DBParameterGroups[0].DBParameterGroupName
+            DBSubnetGroupName: DBSubnetGroup.DBSubnetGroupName
+            EnableIAMDatabaseAuthentication: IAMDatabaseAuthenticationEnabled
+            MultiAZ: MultiAZ
+            OptionGroupName: OptionGroupMemberships[0].OptionGroupName
+            PubliclyAccessible: PubliclyAccessible
+            StorageType: StorageType
+            VpcSecurityGroupIds: VpcSecurityGroups[].VpcSecurityGroupId
+        }'
+}
+
+get_latest_snapshot() {
+    aws rds describe-db-snapshots \
+        --db-instance-identifier "$RDS_INSTANCE_SOURCE" \
+        --query 'reverse(sort_by(DBSnapshots, &SnapshotCreateTime))[0]|DBSnapshotIdentifier' \
+        --snapshot-type automated \
+        --output text
+}
+
+echo "WARNING: Re-creating $RDS_INSTANCE_TARGET from snapshot $RDS_INSTANCE_SOURCE"
+if [ -t 1 ]; then
+    read -rp "Continue? [y/n] " -n1
+    echo && [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Aborted" && exit 1
+fi
+
+echo "(1) Getting the target db's settings"
+SETTINGS="$(get_db_settings)"
+
+echo "(2) Deleting the target db"
+aws rds delete-db-instance \
+    --db-instance-identifier "$RDS_INSTANCE_TARGET" \
+    --skip-final-snapshot
+aws rds wait db-instance-deleted --db-instance-identifier "$RDS_INSTANCE_TARGET"
+
+echo "(3) Restoring a new target db from the source's latest snapshot"
+aws rds restore-db-instance-from-db-snapshot \
+    --db-instance-identifier "$RDS_INSTANCE_TARGET" \
+    --db-snapshot-identifier "$(get_latest_snapshot)" \
+    --cli-input-json="$SETTINGS"
+aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE_TARGET"
+
+echo "SUCCESS: Re-created $RDS_INSTANCE_TARGET from snapshot $RDS_INSTANCE_SOURCE"

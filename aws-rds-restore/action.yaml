@@ -1,0 +1,25 @@
+name: AWS RDS restore
+description: AWS RDS restore
+
+inputs:
+  access_key_id:
+    description: AWS_ACCESS_KEY_ID
+    required: true
+  secret_access_key:
+    description: AWS_SECRET_ACCESS_KEY
+    required: true
+  region:
+    description: AWS_DEFAULT_REGION
+    required: true
+  source:
+    description: Source instance id
+    required: true
+  target:
+    description: Target instance id
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - run: ${{ github.action_path }}/restore ${{ inputs.source }} ${{ inputs.target }}
+      shell: bash
