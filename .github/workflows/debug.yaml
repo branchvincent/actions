@@ -6,4 +6,4 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: branchvincent/actions/javascript@main
+      - uses: branchvincent/actions/composite@main
