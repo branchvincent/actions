@@ -11,6 +11,7 @@ repos:
     rev: v7.20.0
     hooks:
       - id: eslint
+        args: [--fix]
   - repo: https://github.com/IamTheFij/docker-pre-commit
     rev: v2.0.0
     hooks:
