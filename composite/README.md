@@ -5,13 +5,9 @@ This is an example composite action take from [here](https://docs.github.com/en/
 ## Usage
 
 ```yaml
-jobs:
-  main:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: branchvincent/actions/composite@main
-        with:
-          who-to-greet: me!
+- uses: branchvincent/actions/composite@main
+  with:
+    who-to-greet: me!
 ```
 
 ## Limitations
