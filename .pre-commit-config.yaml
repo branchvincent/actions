@@ -1,0 +1,17 @@
+exclude: node_modules
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/IamTheFij/docker-pre-commit
+    rev: v2.0.0
+    hooks:
+      - id: hadolint
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v7.20.0
+    hooks:
+      - id: eslint
