@@ -17,12 +17,6 @@ set -euo pipefail
 RDS_INSTANCE_SOURCE=${1?Source Required}
 RDS_INSTANCE_TARGET=${2?Target Required}
 
-which aws
-echo Here
-aws --version
-aws iam get-user
-echo There
-
 export AWS_PAGER="" # disable output pagination
 
 # Perserve any settings that won't/shouldn't be inherited from the snapshot
